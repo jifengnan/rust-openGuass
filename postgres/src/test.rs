@@ -508,3 +508,37 @@ fn check_send() {
     is_send::<Statement>();
     is_send::<Transaction<'_>>();
 }
+
+#[test]
+fn sha256_curd() {
+    let mut client = Client::connect(
+        "host=localhost port=15432 user=jifengnan1 password=54Xiaolan! dbname=postgres",
+        NoTls,
+    )
+    .unwrap();
+
+    client.simple_query("DROP TABLE if EXISTS foo").unwrap();
+    client
+        .simple_query("CREATE TABLE if NOT EXISTS foo (id int)")
+        .unwrap();
+
+    // insert
+    client.simple_query("INSERT INTO foo(id) values(1)").unwrap();
+    let rows = client.query("SELECT * FROM foo WHERE id=1", &[]).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].get::<_, i32>(0), 1);
+
+    // update
+    let new_value = 2;
+    client.execute("UPDATE foo SET id=$1 WHERE id=1", &[&new_value]).unwrap();
+    let rows = client.query("SELECT * FROM foo WHERE id=$1", &[&new_value]).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].get::<_, i32>(0), new_value);
+
+    // delete
+    client.execute("DELETE FROM foo WHERE id=$1", &[&new_value]).unwrap();
+    let rows = client.query("SELECT * FROM foo WHERE id=$1", &[&new_value]).unwrap();
+    assert_eq!(rows.len(), 0);
+
+    client.simple_query("DROP TABLE if EXISTS foo").unwrap();
+}

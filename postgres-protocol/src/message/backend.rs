@@ -78,6 +78,7 @@ pub enum Message {
     AuthenticationGss,
     AuthenticationKerberosV5,
     AuthenticationMd5Password(AuthenticationMd5PasswordBody),
+    AuthenticationSha256Password(AuthenticationSha256PasswordBody),
     AuthenticationOk,
     AuthenticationScmCredential,
     AuthenticationSspi,
@@ -221,8 +222,38 @@ impl Message {
                 }
                 9 => Message::AuthenticationSspi,
                 10 => {
-                    let storage = buf.read_all();
-                    Message::AuthenticationSasl(AuthenticationSaslBody(storage))
+                    match buf.read_i32::<BigEndian>()? {
+                        0 | 2 => {
+                            let mut random64code = [0; 64];
+                            buf.read_exact(&mut random64code)?;
+                            let mut token = [0; 8];
+                            buf.read_exact(&mut token)?;
+                            let mut server_iteration = [0; 4];
+                            buf.read_exact(&mut server_iteration)?;
+                            let storage = buf.read_all();
+                            Message::AuthenticationSha256Password(
+                                AuthenticationSha256PasswordBody {
+                                    random64code,
+                                    token,
+                                    server_iteration,
+                                },
+                            )
+                        }
+                        1 => {
+                            let mut salt = [0; 4];
+                            buf.read_exact(&mut salt)?;
+                            Message::AuthenticationMd5Password(AuthenticationMd5PasswordBody {
+                                salt,
+                            })
+                        }
+                        tag => {
+                            println!("unknown sha256 authentication tag `{}`", tag);
+                            return Err(io::Error::new(
+                                io::ErrorKind::InvalidInput,
+                                format!("unknown sha256 authentication tag `{}`", tag),
+                            ));
+                        }
+                    }
                 }
                 11 => {
                     let storage = buf.read_all();
@@ -341,6 +372,30 @@ impl AuthenticationMd5PasswordBody {
     #[inline]
     pub fn salt(&self) -> [u8; 4] {
         self.salt
+    }
+}
+
+pub struct AuthenticationSha256PasswordBody {
+    random64code: [u8; 64],
+    token: [u8; 8],
+    server_iteration: [u8; 4],
+}
+
+impl AuthenticationSha256PasswordBody {
+    #[inline]
+    pub fn random64code(&self) -> [u8; 64] {
+        self.random64code
+    }
+
+    #[inline]
+    pub fn token(&self) -> [u8; 8] {
+        self.token
+    }
+
+    #[inline]
+    pub fn server_iteration(&self) -> u32 {
+        // hard code this time
+        10000
     }
 }
 
