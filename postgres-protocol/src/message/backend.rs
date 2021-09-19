@@ -221,40 +221,33 @@ impl Message {
                     Message::AuthenticationGssContinue(AuthenticationGssContinueBody(storage))
                 }
                 9 => Message::AuthenticationSspi,
-                10 => {
-                    match buf.read_i32::<BigEndian>()? {
-                        0 | 2 => {
-                            let mut random64code = [0; 64];
-                            buf.read_exact(&mut random64code)?;
-                            let mut token = [0; 8];
-                            buf.read_exact(&mut token)?;
-                            let mut server_iteration = [0; 4];
-                            buf.read_exact(&mut server_iteration)?;
-                            let storage = buf.read_all();
-                            Message::AuthenticationSha256Password(
-                                AuthenticationSha256PasswordBody {
-                                    random64code,
-                                    token,
-                                    server_iteration,
-                                },
-                            )
-                        }
-                        1 => {
-                            let mut salt = [0; 4];
-                            buf.read_exact(&mut salt)?;
-                            Message::AuthenticationMd5Password(AuthenticationMd5PasswordBody {
-                                salt,
-                            })
-                        }
-                        tag => {
-                            println!("unknown sha256 authentication tag `{}`", tag);
-                            return Err(io::Error::new(
-                                io::ErrorKind::InvalidInput,
-                                format!("unknown sha256 authentication tag `{}`", tag),
-                            ));
-                        }
+                10 => match buf.read_i32::<BigEndian>()? {
+                    0 | 2 => {
+                        let mut random64code = [0; 64];
+                        buf.read_exact(&mut random64code)?;
+                        let mut token = [0; 8];
+                        buf.read_exact(&mut token)?;
+                        let mut server_iteration = [0; 4];
+                        buf.read_exact(&mut server_iteration)?;
+                        Message::AuthenticationSha256Password(AuthenticationSha256PasswordBody {
+                            random64code,
+                            token,
+                            server_iteration,
+                        })
                     }
-                }
+                    1 => {
+                        let mut salt = [0; 4];
+                        buf.read_exact(&mut salt)?;
+                        Message::AuthenticationMd5Password(AuthenticationMd5PasswordBody { salt })
+                    }
+                    tag => {
+                        println!("unknown sha256 authentication tag `{}`", tag);
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            format!("unknown sha256 authentication tag `{}`", tag),
+                        ));
+                    }
+                },
                 11 => {
                     let storage = buf.read_all();
                     Message::AuthenticationSaslContinue(AuthenticationSaslContinueBody(storage))
@@ -394,8 +387,10 @@ impl AuthenticationSha256PasswordBody {
 
     #[inline]
     pub fn server_iteration(&self) -> u32 {
-        // hard code this time
-        10000
+        ((self.server_iteration[0] as u32) << 24)
+            | ((self.server_iteration[1] as u32) << 16)
+            | ((self.server_iteration[2] as u32) << 8)
+            | (self.server_iteration[3] as u32)
     }
 }
 
