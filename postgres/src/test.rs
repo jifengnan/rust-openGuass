@@ -512,7 +512,7 @@ fn check_send() {
 #[test]
 fn sha256_curd() {
     let mut client = Client::connect(
-        "host=localhost port=15432 user=jifengnan1 password=54Xiaolan! dbname=postgres",
+        "host=localhost port=15432 user=test1234 password=testTEST1234! dbname=postgres",
         NoTls,
     )
     .unwrap();

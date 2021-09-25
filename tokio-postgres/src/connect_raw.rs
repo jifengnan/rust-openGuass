@@ -9,6 +9,7 @@ use fallible_iterator::FallibleIterator;
 use futures::channel::mpsc;
 use futures::{ready, Sink, SinkExt, Stream, TryStreamExt};
 use postgres_protocol::authentication;
+use postgres_protocol::authentication::sha256;
 use postgres_protocol::authentication::sasl;
 use postgres_protocol::authentication::sasl::ScramSha256;
 use postgres_protocol::message::backend::{AuthenticationSaslBody, Message};
@@ -177,7 +178,7 @@ where
                 .as_ref()
                 .ok_or_else(|| Error::config("password missing".into()))?;
 
-            let output = authentication::sha256_hash(pass, body);
+            let output = sha256::rfc5802_algorithm(pass, body);
             let result: &[_] = &output;
             authenticate_password(stream, result).await?;
         }

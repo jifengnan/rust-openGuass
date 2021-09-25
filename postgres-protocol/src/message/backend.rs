@@ -392,6 +392,19 @@ impl AuthenticationSha256PasswordBody {
             | ((self.server_iteration[2] as u32) << 8)
             | (self.server_iteration[3] as u32)
     }
+
+    #[inline]
+    pub fn new(
+        random64code: [u8; 64],
+        token: [u8; 8],
+        server_iteration: [u8; 4],
+    ) -> AuthenticationSha256PasswordBody {
+        AuthenticationSha256PasswordBody {
+            random64code,
+            token,
+            server_iteration,
+        }
+    }
 }
 
 pub struct AuthenticationGssContinueBody(Bytes);
